@@ -1,0 +1,4 @@
+interface:
+  display_name: "Skill Install"
+  short_description: "Install a reusable skill from a URL or source"
+  default_prompt: "Use $skillinstall to turn this URL into an installed, validated skill and preserve its findings."

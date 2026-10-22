@@ -1,3 +1,11 @@
+## Codex: install a URL as a reusable skill
+
+This fork includes installable **skillinstall** and **skill-anything** Codex packages. Say `skillinstall <URL>` to install an existing skill or create a validated skill from website/document/repository content, with source-backed findings kept in its references.
+
+See [Codex installation, usage, and long-term recall](codex/README.md). Codex-native drafting needs no separate API key; the optional CLI backend has its own runtime/configuration. Memory stores concise preferences or pointers when explicitly requested; this does not train the model.
+
+---
+
 <p align="center">
   <img src="assets/banner.svg" alt="Skill-Anything — Any Source to Study Packs and Agent Skills" width="960"/>
 </p>
@@ -1031,3 +1039,4 @@ ruff check .
 <p align="center">
   <b>Skill-Anything</b> — <i>Turn source material into reusable learning systems.</i>
 </p>
+
