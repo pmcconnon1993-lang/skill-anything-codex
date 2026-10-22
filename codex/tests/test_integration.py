@@ -10,7 +10,7 @@ from pathlib import Path
 
 import yaml
 
-SKILL = Path(__file__).resolve().parents[1] / "skill-anything"
+SKILL = Path(__file__).resolve().parents[2] / "skill-anything-codex"
 
 
 class IntegrationTests(unittest.TestCase):

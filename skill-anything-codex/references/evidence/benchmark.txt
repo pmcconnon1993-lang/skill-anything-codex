@@ -1,0 +1,74 @@
+Selected source excerpts: scripts/run_benchmark.py
+Commit: 0f7d527492ca84b28148600880a4854374df8c24
+Not a complete source snapshot.
+
+Original lines 18-86:
+def _run_single_benchmark(
+    eval_case: dict[str, Any],
+    skill_path: Path | None,
+    workspace_dir: Path,
+    run_id: str,
+    model: str | None = None,
+) -> dict[str, Any]:
+    """Run a single benchmark case (with or without skill).
+
+    Args:
+        eval_case: Dict with 'query' and 'grader_instructions'.
+        skill_path: Path to skill directory, or None for without-skill.
+        workspace_dir: Directory for outputs.
+        run_id: Unique run identifier.
+        model: Optional model override.
+
+    Returns:
+        Dict with run results and grading.
+    """
+    run_dir = workspace_dir / run_id
+    run_dir.mkdir(parents=True, exist_ok=True)
+    outputs_dir = run_dir / "outputs"
+    outputs_dir.mkdir(exist_ok=True)
+
+    query = eval_case["query"]
+
+    # Build claude command
+    cmd = ["claude", "-p", query, "--output-format", "json"]
+    if model:
+        cmd.extend(["--model", model])
+
+    try:
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            timeout=300,
+        )
+        response = result.stdout.strip()
+
+        # Save raw output
+        (outputs_dir / "response.txt").write_text(response)
+        (outputs_dir / "stderr.txt").write_text(result.stderr)
+
+    except subprocess.TimeoutExpired:
+        response = ""
+        (outputs_dir / "response.txt").write_text("")
+        (outputs_dir / "stderr.txt").write_text("TIMEOUT")
+
+    # Grade using grader instructions
+    grading = _grade_response(
+        query=query,
+        response=response,
+        grader_instructions=eval_case.get("grader_instructions", ""),
+        model=model,
+    )
+
+    # Save grading
+    (run_dir / "grading.json").write_text(json.dumps(grading, indent=2))
+
+    return {
+        "run_id": run_id,
+        "query": query,
+        "with_skill": skill_path is not None,
+        "grading": grading,
+    }
+
+
+def _grade_response(

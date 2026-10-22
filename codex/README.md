@@ -3,7 +3,7 @@
 This directory adds installable Codex skills around the upstream Skill-Anything CLI.
 
 - `skillinstall`: routes a URL to an existing skill installation or source-to-skill creation.
-- `skill-anything`: extracts source material and helps Codex create operational agent skills; also supports upstream learning packs and exports.
+- `skill-anything-codex`: extracts source material and helps Codex create operational agent skills; also supports upstream learning packs and exports.
 
 ## Install globally
 
@@ -11,19 +11,19 @@ With Codex's bundled skill-installer:
 
 ```sh
 python3 ~/.codex/skills/.system/skill-installer/scripts/install-skill-from-github.py \
-  --repo pmcconnon1993-lang/skill-anything \
-  --path codex/skill-anything codex/skillinstall
+  --repo pmcconnon1993-lang/skill-anything-codex \
+  --path skill-anything-codex codex/skillinstall
 ```
 
 The installer defaults to `$CODEX_HOME/skills`, or `~/.codex/skills`. Adjust the installer script path if CODEX_HOME differs. The skills become available on the next turn. Existing destinations cause a refusal: inspect and back up an existing package before an intentional update.
 
-The instructions can use Codex's existing source-reading tools without a separate API key. The extraction scripts need the optional Python runtime described in [upstream-cli.md](skill-anything/references/upstream-cli.md); a skill installation does not itself install that backend. Standalone CLI generation needs a configured backend for useful LLM output and may otherwise use heuristics. No credentials, model weights, or personal memory are included.
+The instructions can use Codex's existing source-reading tools without a separate API key. The extraction scripts need the optional Python runtime described in [upstream-cli.md](../skill-anything-codex/references/toolchain.md); a skill installation does not itself install that backend. Standalone CLI generation needs a configured backend for useful LLM output and may otherwise use heuristics. No credentials, model weights, or personal memory are included.
 
 ## Use
 
 Say `skillinstall https://example.com/tool/docs`, or invoke `$skillinstall` with your URL. The expected result is an installed or updated skill containing operational procedures, source-backed references, and verification results. A summary or bookmark alone is insufficient.
 
-Existing GitHub SKILL.md packages use skill-installer. Websites and repositories without one use skill-anything plus skill-creator. The routing skills depend on Codex's bundled skill-installer and skill-creator; install both packages above together.
+Existing GitHub SKILL.md packages use skill-installer. Websites and repositories without one use skill-anything-codex plus skill-creator. The routing skills depend on Codex's bundled skill-installer and skill-creator; install both packages above together.
 
 ## Durable findings
 

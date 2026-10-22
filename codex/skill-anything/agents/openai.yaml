@@ -1,4 +1,0 @@
-interface:
-  display_name: "Skill Anything"
-  short_description: "Turn source material into usable Codex skills"
-  default_prompt: "Use $skill-anything to turn this source into a validated, reusable Codex skill."

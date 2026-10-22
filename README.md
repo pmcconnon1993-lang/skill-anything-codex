@@ -1,8 +1,48 @@
-## Codex: install a URL as a reusable skill
+# Skill Anything Codex
 
-This fork includes installable **skillinstall** and **skill-anything** Codex packages. Say `skillinstall <URL>` to install an existing skill or create a validated skill from website/document/repository content, with source-backed findings kept in its references.
+Turn selected websites, tools, repositories, APIs, documents and workflows into
+usable Codex skills with source-backed, retrievable knowledge.
 
-See [Codex installation, usage, and long-term recall](codex/README.md). Codex-native drafting needs no separate API key; the optional CLI backend has its own runtime/configuration. Memory stores concise preferences or pointers when explicitly requested; this does not train the model.
+**Say:** “HeaderGuard skill install” with the source, or “Turn this into a reusable
+Codex skill.” The workflow resolves the actual target, studies relevant source,
+implements the useful capability, checks it, and installs it when requested.
+Bare links and inspection-only requests preserve their narrower scope.
+
+- [Installable Codex skill](skill-anything-codex/SKILL.md)
+- [Study findings and adopted techniques](skill-anything-codex/references/source-findings.md)
+- [Reusable knowledge records](skill-anything-codex/references/knowledge.json)
+- [Evidence contract](skill-anything-codex/references/knowledge-contract.md)
+- [Validation and reproduction](research/VALIDATION.md)
+
+The source library is organized by topic. A local recall command returns selected
+claims with citations; validation rejects missing/changed evidence and fabricated
+excerpts. Codex still reviews semantic support. This is retained instruction and
+knowledge, not model training, a complete website mirror or a guarantee against
+mistakes.
+
+## Install and use
+
+Use Codex's skill-installer with this repository and path `skill-anything-codex`,
+or copy that directory into your shared Codex skills root. Keep normal automatic
+selection enabled. Explicit invocation is `$skill-anything-codex`.
+The existing `$skillinstall` router remains available and routes source creation
+to the renamed package.
+
+```bash
+python3 skill-anything-codex/scripts/knowledge.py check
+python3 skill-anything-codex/scripts/knowledge.py recall 'Codex packaging'
+python3 skill-anything-codex/scripts/knowledge.py catalog 'CSV headers'
+```
+
+The core knowledge helper needs only Python 3.10+. Optional source extraction
+uses the existing `skill_anything` application and selected dependencies; see
+[toolchain](skill-anything-codex/references/toolchain.md). No model API, watcher,
+Claude evaluator or other assistant's configuration is installed by this skill.
+
+This update preserves the original SYuan03/Skill-Anything application and adopts
+selected, checked techniques from AgentSkillOS/SkillAnything. Exact revisions,
+source limits and attribution are in the skill references. The original
+application documentation follows for its separate study-pack CLI.
 
 ---
 

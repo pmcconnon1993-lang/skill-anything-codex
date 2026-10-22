@@ -35,11 +35,13 @@ def main():
                 raise ValueError("Conflicting versions; review manually")
             metadata["version"] = version
             del front["version"]
-        body = original[match.end():].replace(
+        body = original[match.end() :].replace(
             "python ${CLAUDE_SKILL_DIR}/scripts/quiz.py",
             "# Run from this skill's directory with Python and PyYAML available:\npython3 scripts/quiz.py",
         )
-        normalized = "---\n" + yaml.safe_dump(front, sort_keys=False, allow_unicode=True) + "---\n" + body
+        normalized = (
+            "---\n" + yaml.safe_dump(front, sort_keys=False, allow_unicode=True) + "---\n" + body
+        )
         if normalized == original:
             print(f"Already normalized: {path}")
             return

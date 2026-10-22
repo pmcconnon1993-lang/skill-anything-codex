@@ -1,0 +1,91 @@
+Selected source excerpts: scripts/package_multiplatform.py
+Commit: 0f7d527492ca84b28148600880a4854374df8c24
+Not a complete source snapshot.
+
+Original lines 71-81:
+                break
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def _render_template(template_text: str, variables: dict) -> str:
+    """Simple Jinja2-style template rendering (no jinja2 dependency)."""
+    def _replace(m: re.Match) -> str:
+        key = m.group(1).strip().split("|")[0].strip()
+        return str(variables.get(key, m.group(0)))
+
+
+Original lines 90-109:
+    skill_md = skill_path / "SKILL.md"
+    if not skill_md.is_file():
+        return {}, ""
+
+    content = skill_md.read_text()
+    if content.startswith("---"):
+        parts = content.split("---", 2)
+        if len(parts) >= 3:
+            frontmatter_text = parts[1].strip()
+            body = parts[2].strip()
+            # Parse frontmatter (simple key: value)
+            fm: dict = {}
+            current_key = None
+            for line in frontmatter_text.splitlines():
+                if line and not line[0].isspace() and ":" in line:
+                    key, _, val = line.partition(":")
+                    val = val.strip()
+                    current_key = key.strip()
+                    fm[current_key] = val
+                elif current_key and line.strip().startswith("- "):
+
+Original lines 166-191:
+
+    # Codex: also generate agents/openai.yaml
+    if platform == "codex":
+        agents_dir = dest / "agents"
+        agents_dir.mkdir(exist_ok=True)
+        openai_yaml = (
+            f'interface:\n'
+            f'  display_name: "{skill_name.replace("-", " ").title()}"\n'
+            f'  short_description: "{(frontmatter.get("description", "") or "")[:80]}"\n'
+            f'  brand_color: "#2C3E50"\n'
+            f'  default_prompt: "Help me with {skill_name.replace("-", " ")}"\n'
+            f'\n'
+            f'dependencies:\n'
+            f'  tools:\n'
+            f'    - bash\n'
+            f'    - file_read\n'
+            f'    - file_write\n'
+            f'\n'
+            f'policy:\n'
+            f'  allow_implicit_invocation: true\n'
+        )
+        (agents_dir / "openai.yaml").write_text(openai_yaml)
+
+    # Compute format and checksum
+    fmt = "directory"
+    checksum = ""
+
+Original lines 220-242:
+
+def _validate_platform(dest: Path, platform: str) -> list[str]:
+    """Quick validation of a packaged platform output."""
+    issues: list[str] = []
+    skill_md = dest / "SKILL.md"
+    if not skill_md.is_file():
+        issues.append(f"[{platform}] Missing SKILL.md")
+    else:
+        content = skill_md.read_text()
+        if not content.startswith("---"):
+            issues.append(f"[{platform}] SKILL.md missing YAML frontmatter")
+        if len(content) < 50:
+            issues.append(f"[{platform}] SKILL.md is suspiciously short ({len(content)} chars)")
+
+    if platform == "codex":
+        openai_yaml = dest / "agents" / "openai.yaml"
+        if not openai_yaml.is_file():
+            issues.append(f"[{platform}] Missing agents/openai.yaml")
+
+    return issues
+
+
+# ---------------------------------------------------------------------------

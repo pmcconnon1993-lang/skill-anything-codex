@@ -1,0 +1,26 @@
+{
+  "identity": "0f7d527492ca84b28148600880a4854374df8c24",
+  "probes": [
+    {
+      "name": "folded-description",
+      "observed": "description collapses to literal >; Codex short_description becomes >",
+      "result": "confirmed"
+    },
+    {
+      "name": "codex-dependencies",
+      "observed": "tools are strings bash/file_read/file_write, not documented Codex tool dependency objects",
+      "result": "confirmed"
+    },
+    {
+      "name": "generated-assertions",
+      "observed": "contains_keyword plus no_error; no backend-output check supplied",
+      "result": "confirmed"
+    },
+    {
+      "name": "benchmark-skill-loading",
+      "observed": "captured subprocess argv and kwargs identical with and without skill_path",
+      "result": "confirmed; subprocess and grader stubbed, no model benchmark run"
+    }
+  ],
+  "limits": "Bounded source-contract probes do not measure model quality or prove every upstream path is broken."
+}

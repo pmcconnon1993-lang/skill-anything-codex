@@ -1,0 +1,155 @@
+{
+  "schema": "skill-anything-knowledge/v1",
+  "sources": [
+    {
+      "id": "analyzer",
+      "uri": "https://github.com/AgentSkillOS/SkillAnything/blob/0f7d527492ca84b28148600880a4854374df8c24/scripts/analyze_target.py",
+      "revision": "0f7d527492ca84b28148600880a4854374df8c24",
+      "snapshot": "references/evidence/analyzer.txt",
+      "sha256": "c057dee57dc8b1a721a8bdffd82532f4eca9db34bf7e1aeda1a04013e027559c"
+    },
+    {
+      "id": "tests",
+      "uri": "https://github.com/AgentSkillOS/SkillAnything/blob/0f7d527492ca84b28148600880a4854374df8c24/scripts/generate_tests.py",
+      "revision": "0f7d527492ca84b28148600880a4854374df8c24",
+      "snapshot": "references/evidence/tests.txt",
+      "sha256": "5352d2076e7cc31adf14989f56eefeede702a6af47bbb13a1d41b17f72e16914"
+    },
+    {
+      "id": "trigger",
+      "uri": "https://github.com/AgentSkillOS/SkillAnything/blob/0f7d527492ca84b28148600880a4854374df8c24/scripts/run_eval.py",
+      "revision": "0f7d527492ca84b28148600880a4854374df8c24",
+      "snapshot": "references/evidence/trigger.txt",
+      "sha256": "14bde3929379897623e507a0d1c4beda6d9da3811cc0b4c49c5e996c5416df62"
+    },
+    {
+      "id": "benchmark",
+      "uri": "https://github.com/AgentSkillOS/SkillAnything/blob/0f7d527492ca84b28148600880a4854374df8c24/scripts/run_benchmark.py",
+      "revision": "0f7d527492ca84b28148600880a4854374df8c24",
+      "snapshot": "references/evidence/benchmark.txt",
+      "sha256": "1c98a7cc9accbec1bce6b44df9c648e823695a5edf96982a0a957da3fc28110a"
+    },
+    {
+      "id": "packager",
+      "uri": "https://github.com/AgentSkillOS/SkillAnything/blob/0f7d527492ca84b28148600880a4854374df8c24/scripts/package_multiplatform.py",
+      "revision": "0f7d527492ca84b28148600880a4854374df8c24",
+      "snapshot": "references/evidence/packager.txt",
+      "sha256": "576a6848605bd4cb124fe81a0eb9264ea8257ed60675fdda3e41ba3a7e78e184"
+    }
+  ],
+  "facts": [
+    {
+      "id": "analysis-coverage",
+      "topic": "Target analysis coverage",
+      "claim": "The inspected analyzer applies explicit content/file/symbol limits; target detection is a starting inventory rather than complete understanding.",
+      "status": "static",
+      "tags": [
+        "analysis",
+        "coverage",
+        "limits"
+      ],
+      "evidence": [
+        {
+          "source_id": "analyzer",
+          "locator": "scripts/analyze_target.py; selected original line ranges in snapshot",
+          "quote": "files = list(p.rglob(\"*.py\"))[:50] if p.is_dir() else [p]"
+        }
+      ],
+      "limitations": [
+        "Applies to the pinned inspected source; semantic support reviewed by Codex. No model quality benchmark was run."
+      ],
+      "checks": []
+    },
+    {
+      "id": "functional-evaluation",
+      "topic": "Functional evaluation quality",
+      "claim": "Generated functional assertions check a capability keyword and no_error; actual backend-output acceptance checks still need to be authored.",
+      "status": "static",
+      "tags": [
+        "evaluation",
+        "tests",
+        "keywords"
+      ],
+      "evidence": [
+        {
+          "source_id": "tests",
+          "locator": "scripts/generate_tests.py; selected original line ranges in snapshot",
+          "quote": "\"type\": \"contains_keyword\","
+        }
+      ],
+      "limitations": [
+        "Applies to the pinned inspected source; semantic support reviewed by Codex. No model quality benchmark was run."
+      ],
+      "checks": []
+    },
+    {
+      "id": "claude-trigger-evaluation",
+      "topic": "Trigger evaluation portability",
+      "claim": "The trigger evaluator creates a temporary Claude command and invokes claude; it does not establish native Codex skill activation.",
+      "status": "static",
+      "tags": [
+        "codex",
+        "claude",
+        "trigger",
+        "activation"
+      ],
+      "evidence": [
+        {
+          "source_id": "trigger",
+          "locator": "scripts/run_eval.py; selected original line ranges in snapshot",
+          "quote": "cmd = [\"claude\", \"-p\", query, \"--output-format\", \"stream-json\"]"
+        }
+      ],
+      "limitations": [
+        "Applies to the pinned inspected source; semantic support reviewed by Codex. No model quality benchmark was run."
+      ],
+      "checks": []
+    },
+    {
+      "id": "benchmark-skill-loading",
+      "topic": "Benchmark skill loading",
+      "claim": "In the inspected single-case runner, skill_path changes the reported with_skill flag but is not passed to the subprocess command or execution environment; an actual with-skill comparison remains unverified.",
+      "status": "static",
+      "tags": [
+        "benchmark",
+        "evaluation",
+        "baseline",
+        "skill_path"
+      ],
+      "evidence": [
+        {
+          "source_id": "benchmark",
+          "locator": "scripts/run_benchmark.py; selected original line ranges in snapshot",
+          "quote": "\"with_skill\": skill_path is not None,"
+        }
+      ],
+      "limitations": [
+        "Applies to the pinned inspected source; semantic support reviewed by Codex. No model quality benchmark was run."
+      ],
+      "checks": []
+    },
+    {
+      "id": "codex-packaging",
+      "topic": "Codex packaging compatibility",
+      "claim": "Codex packaging hardcodes bash/file_read/file_write dependency strings and performs shallow file checks; generated metadata requires native Codex review.",
+      "status": "static",
+      "tags": [
+        "codex",
+        "packaging",
+        "metadata",
+        "dependencies"
+      ],
+      "evidence": [
+        {
+          "source_id": "packager",
+          "locator": "scripts/package_multiplatform.py; selected original line ranges in snapshot",
+          "quote": "f'    - bash\\n'"
+        }
+      ],
+      "limitations": [
+        "Applies to the pinned inspected source; semantic support reviewed by Codex. No model quality benchmark was run."
+      ],
+      "checks": []
+    }
+  ]
+}

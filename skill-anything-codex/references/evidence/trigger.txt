@@ -1,0 +1,44 @@
+Selected source excerpts: scripts/run_eval.py
+Commit: 0f7d527492ca84b28148600880a4854374df8c24
+Not a complete source snapshot.
+
+Original lines 13-51:
+def _run_single_query(
+    query: str,
+    skill_name: str,
+    skill_description: str,
+    should_trigger: bool,
+    model: str | None = None,
+) -> dict[str, Any]:
+    """Run a single trigger test query against Claude.
+
+    Creates a temporary command file in .claude/commands/ and invokes
+    `claude -p` with --output-format stream-json to detect triggering.
+
+    Returns a dict with query, expected, actual, and pass/fail.
+    """
+    # Create temporary command file
+    claude_dir = Path.home() / ".claude" / "commands"
+    claude_dir.mkdir(parents=True, exist_ok=True)
+
+    # Use a unique temp file name
+    cmd_file = claude_dir / f"_eval_trigger_{os.getpid()}_{id(query)}.md"
+
+    try:
+        # Write the skill command file
+        cmd_file.write_text(
+            f"---\n"
+            f"name: {skill_name}\n"
+            f"description: {skill_description}\n"
+            f"---\n\n"
+            f"This is a test skill for evaluation.\n"
+        )
+
+        # Build claude command
+        cmd = ["claude", "-p", query, "--output-format", "stream-json"]
+        if model:
+            cmd.extend(["--model", model])
+
+        result = subprocess.run(
+            cmd,
+            capture_output=True,

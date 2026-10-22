@@ -1,0 +1,56 @@
+Selected source excerpts: scripts/analyze_target.py
+Commit: 0f7d527492ca84b28148600880a4854374df8c24
+Not a complete source snapshot.
+
+Original lines 217-231:
+    capabilities = []
+    endpoints: list[dict] = []
+    try:
+        spec = json.loads(body)
+        info = spec.get("info", {})
+        paths = spec.get("paths", {})
+        for path, methods in paths.items():
+            for method, detail in methods.items():
+                if method.startswith("x-") or method == "parameters":
+                    continue
+                summary = ""
+                if isinstance(detail, dict):
+                    summary = detail.get("summary", detail.get("description", ""))[:120]
+                endpoints.append({"path": path, "method": method.upper(), "summary": summary})
+                capabilities.append({
+
+Original lines 267-277:
+        "dependencies": [],
+        "error_patterns": [],
+        "raw_docs": text[:16_000],
+    }
+
+
+def _analyze_library(target: str, verbose: bool = False) -> dict:
+    """Analyse a library directory or source file."""
+    p = Path(target)
+    files = list(p.rglob("*.py"))[:50] if p.is_dir() else [p]
+    capabilities = []
+
+Original lines 287-307:
+        "capabilities": capabilities[:100],
+        "inputs": [str(f) for f in files],
+        "outputs": [],
+        "dependencies": [],
+        "error_patterns": [],
+        "raw_docs": "",
+    }
+
+
+_ANALYZERS = {
+    "cli": _analyze_cli,
+    "api": _analyze_api,
+    "service": _analyze_api,
+    "file": _analyze_file,
+    "library": _analyze_library,
+    "workflow": _analyze_file,
+}
+
+
+# ---------------------------------------------------------------------------
+# Main

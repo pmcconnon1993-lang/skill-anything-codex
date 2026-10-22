@@ -1,0 +1,6 @@
+interface:
+  display_name: "Skill Anything Codex"
+  short_description: "Build source-backed skills with checked recall"
+  default_prompt: "Use $skill-anything-codex to turn this source into an installed Codex skill with checked, retrievable knowledge."
+policy:
+  allow_implicit_invocation: true
