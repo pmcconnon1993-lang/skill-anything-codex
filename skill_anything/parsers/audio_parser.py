@@ -77,15 +77,9 @@ class AudioParser(BaseParser):
     @staticmethod
     def _try_openai_whisper_api(path: str) -> list[tuple[str, str]] | None:
         """Use the OpenAI Whisper API (requires API key)."""
-        try:
-            from dotenv import load_dotenv
+        from skill_anything.llm import _ensure_env
 
-            for candidate in [Path.cwd() / ".env", Path(__file__).resolve().parent.parent.parent / ".env"]:
-                if candidate.exists():
-                    load_dotenv(candidate, override=False)
-                    break
-        except ImportError:
-            pass
+        _ensure_env()
 
         api_key = os.getenv("SKILL_ANYTHING_API_KEY") or os.getenv("OPENAI_API_KEY", "")
         if not api_key:

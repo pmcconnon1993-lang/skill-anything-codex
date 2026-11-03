@@ -387,8 +387,9 @@ pip install skill-anything[all]       # everything
 ### 2. Configure LLM
 
 ```bash
-cp .env.example .env
-# Edit .env — set your API key and model
+cp .env.example "$HOME/.skill-anything.env"
+export SKILL_ANYTHING_ENV_FILE="$HOME/.skill-anything.env"
+# Edit the selected file — set your API key and model
 ```
 
 Skill-Anything works with **any OpenAI-compatible API**:
@@ -851,10 +852,12 @@ print(json.dumps(data, indent=2, ensure_ascii=False))
 
 ## Environment Variables
 
-All configuration is done through environment variables (set in `.env` or your shell):
+All configuration is done through environment variables set in your shell or in an
+explicitly selected dotenv file:
 
 | Variable | Description | Default |
 |:---------|:------------|:--------|
+| `SKILL_ANYTHING_ENV_FILE` | Absolute path to an opt-in dotenv file | — |
 | `SKILL_ANYTHING_API_KEY` | LLM API key. Falls back to `OPENAI_API_KEY` | — |
 | `SKILL_ANYTHING_API_BASE` | Chat completions base URL. Falls back to `OPENAI_API_BASE` | — |
 | `SKILL_ANYTHING_MODEL` | Chat model name | `gpt-4o` |
@@ -866,9 +869,11 @@ All configuration is done through environment variables (set in `.env` or your s
 | `SKILL_ANYTHING_PROXY` | HTTP proxy for API requests. Falls back to `HTTPS_PROXY` / `HTTP_PROXY` | — |
 | `SKILL_ANYTHING_WHISPER_MODEL` | Whisper API model name for audio transcription | `whisper-1` |
 
-The `.env` file is loaded automatically from the current working directory or the project root. Example:
+Working-directory and project-root `.env` files are not loaded implicitly. To opt in,
+select a dotenv file by absolute path before running Skill-Anything. Example:
 
 ```bash
+export SKILL_ANYTHING_ENV_FILE="$HOME/.skill-anything.env"
 SKILL_ANYTHING_API_KEY=sk-your-api-key-here
 SKILL_ANYTHING_API_BASE=https://api.openai.com/v1
 SKILL_ANYTHING_MODEL=gpt-4o

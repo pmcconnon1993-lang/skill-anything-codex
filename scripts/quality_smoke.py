@@ -37,8 +37,8 @@ CASES = {
 
 
 def main() -> int:
-    # Empty values prevent a local .env from turning this deterministic smoke
-    # test into a paid/networked run.
+    # Empty values keep this deterministic smoke test offline even when an
+    # operator explicitly selects a dotenv file.
     os.environ["SKILL_ANYTHING_API_KEY"] = ""
     os.environ["OPENAI_API_KEY"] = ""
 

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Shared LLM client — loads config from .env, supports chat and image generation."""
+"""Shared LLM client — loads explicit environment config for chat and images."""
 
 from __future__ import annotations
 
@@ -24,16 +24,25 @@ def _ensure_env() -> None:
     global _env_loaded
     if _env_loaded:
         return
-    _env_loaded = True
+
+    env_file = os.getenv("SKILL_ANYTHING_ENV_FILE")
+    if not env_file:
+        _env_loaded = True
+        return
+
+    candidate = Path(env_file).expanduser()
+    if not candidate.is_absolute():
+        raise ValueError("SKILL_ANYTHING_ENV_FILE must be an absolute path")
+    if not candidate.is_file():
+        raise FileNotFoundError(f"Environment file not found: {candidate}")
+
     try:
         from dotenv import load_dotenv
-
-        for candidate in [Path.cwd() / ".env", Path(__file__).resolve().parent.parent / ".env"]:
-            if candidate.exists():
-                load_dotenv(candidate, override=False)
-                return
     except ImportError:
-        pass
+        return
+
+    load_dotenv(candidate, override=False)
+    _env_loaded = True
 
 
 def _get_client() -> tuple[Any, str]:
