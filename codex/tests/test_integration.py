@@ -62,6 +62,60 @@ class IntegrationTests(unittest.TestCase):
         subprocess.run(command, check=True, capture_output=True, text=True)
         self.assertEqual(path.read_text(), normalized)
 
+    def test_normalization_rejects_symlinked_skill_md(self):
+        outside_directory = tempfile.TemporaryDirectory()
+        self.addCleanup(outside_directory.cleanup)
+        outside = Path(outside_directory.name) / "SKILL.md"
+        outside.write_text(
+            "---\nname: outside\ndescription: private\n---\n# Outside\n",
+            encoding="utf-8",
+        )
+        (self.work / "SKILL.md").symlink_to(outside)
+
+        result = subprocess.run(
+            [sys.executable, str(SKILL / "scripts/prepare_codex_skill.py"), str(self.work)],
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+
+        self.assertNotEqual(result.returncode, 0)
+        self.assertRegex(result.stderr.lower(), r"symlink|escapes")
+        self.assertFalse((self.work / "SKILL.md.upstream-backup").exists())
+
+    def test_source_tool_extract_rejects_direct_symlinked_skill_md(self):
+        outside_directory = tempfile.TemporaryDirectory()
+        self.addCleanup(outside_directory.cleanup)
+        outside = Path(outside_directory.name) / "SKILL.md"
+        outside.write_text(
+            "---\nname: outside\ndescription: private\n---\n"
+            "# Outside\n\n## Overview\n\nPrivate content.\n",
+            encoding="utf-8",
+        )
+        linked_skill = self.work / "SKILL.md"
+        linked_skill.symlink_to(outside)
+        output = self.work / "extracted.json"
+
+        result = subprocess.run(
+            [
+                sys.executable,
+                str(SKILL / "scripts/source_tool.py"),
+                "extract",
+                str(linked_skill),
+                "--type",
+                "skill",
+                "--output",
+                str(output),
+            ],
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+
+        self.assertNotEqual(result.returncode, 0)
+        self.assertRegex(result.stderr.lower(), r"symlink|escapes")
+        self.assertFalse(output.exists())
+
     def test_full_subtitle_parser_is_available_without_backend(self):
         spec = importlib.util.spec_from_file_location("extract_source", SKILL / "scripts/extract_source.py")
         module = importlib.util.module_from_spec(spec)

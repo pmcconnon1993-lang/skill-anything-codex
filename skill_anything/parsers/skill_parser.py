@@ -21,6 +21,7 @@ from skill_anything.models import (
     SourceCitation,
     SourceType,
 )
+from skill_anything.parsers._source_files import read_text_within_root, resolve_source_root
 from skill_anything.parsers.base import BaseParser
 
 
@@ -56,7 +57,8 @@ class SkillParser(BaseParser):
     def parse_pack(self, source: str) -> SkillPack:
         skill_root = self.resolve_skill_root(source)
         skill_md = skill_root / "SKILL.md"
-        content = skill_md.read_text(encoding="utf-8")
+        content = read_text_within_root(skill_root, skill_md, encoding="utf-8")
+        assert content is not None
         frontmatter, body = self._split_frontmatter(content)
 
         heading_title = self._extract_h1(body)
@@ -66,13 +68,25 @@ class SkillParser(BaseParser):
         key_concepts = self._parse_list_section(self._extract_section(body, "Key Concepts"))
         takeaways = self._parse_list_section(self._extract_section(body, "Takeaways"))
 
-        detailed_notes = self._read_reference(skill_root / "references" / "detailed-notes.md")
-        glossary = self._parse_glossary_reference(skill_root / "references" / "glossary.md")
-        learning_path = self._parse_learning_path(skill_root / "references" / "learning-path.md")
+        detailed_notes = self._read_reference(
+            skill_root, skill_root / "references" / "detailed-notes.md"
+        )
+        glossary = self._parse_glossary_reference(
+            skill_root, skill_root / "references" / "glossary.md"
+        )
+        learning_path = self._parse_learning_path(
+            skill_root, skill_root / "references" / "learning-path.md"
+        )
 
-        quiz_questions = self._parse_quiz_questions(skill_root / "assets" / "quiz.yaml")
-        flashcards = self._parse_flashcards(skill_root / "assets" / "flashcards.yaml")
-        exercises = self._parse_exercises(skill_root / "assets" / "exercises.yaml")
+        quiz_questions = self._parse_quiz_questions(
+            skill_root, skill_root / "assets" / "quiz.yaml"
+        )
+        flashcards = self._parse_flashcards(
+            skill_root, skill_root / "assets" / "flashcards.yaml"
+        )
+        exercises = self._parse_exercises(
+            skill_root, skill_root / "assets" / "exercises.yaml"
+        )
         citations = list(
             {
                 (citation.section, citation.locator, citation.excerpt): citation
@@ -129,11 +143,11 @@ class SkillParser(BaseParser):
 
     @staticmethod
     def resolve_skill_root(source: str) -> Path:
-        path = Path(source)
+        path = Path(source).expanduser()
         if path.is_file() and path.name == "SKILL.md":
-            return path.parent
+            return resolve_source_root(path.parent, label="Skill root")
         if path.is_dir() and (path / "SKILL.md").exists():
-            return path
+            return resolve_source_root(path, label="Skill root")
         raise FileNotFoundError(f"SKILL.md not found at: {source}")
 
     @staticmethod
@@ -185,19 +199,20 @@ class SkillParser(BaseParser):
         return items
 
     @staticmethod
-    def _read_reference(path: Path) -> str:
-        if not path.exists():
+    def _read_reference(root: Path, path: Path) -> str:
+        content = read_text_within_root(root, path, encoding="utf-8", optional=True)
+        if content is None:
             return ""
-        content = path.read_text(encoding="utf-8").strip()
-        return re.sub(r"^#\s+.*?\n+", "", content, count=1).strip()
+        return re.sub(r"^#\s+.*?\n+", "", content.strip(), count=1).strip()
 
     @staticmethod
-    def _parse_glossary_reference(path: Path) -> list[GlossaryEntry]:
-        if not path.exists():
+    def _parse_glossary_reference(root: Path, path: Path) -> list[GlossaryEntry]:
+        content = read_text_within_root(root, path, encoding="utf-8", optional=True)
+        if content is None:
             return []
 
         glossary: list[GlossaryEntry] = []
-        for line in path.read_text(encoding="utf-8").splitlines():
+        for line in content.splitlines():
             stripped = line.strip()
             if not stripped.startswith("|") or stripped.startswith("|:") or "Term" in stripped:
                 continue
@@ -215,11 +230,11 @@ class SkillParser(BaseParser):
                 )
         return glossary
 
-    def _parse_learning_path(self, path: Path) -> dict[str, list[str]]:
-        if not path.exists():
+    def _parse_learning_path(self, root: Path, path: Path) -> dict[str, list[str]]:
+        content = read_text_within_root(root, path, encoding="utf-8", optional=True)
+        if content is None:
             return {}
 
-        content = path.read_text(encoding="utf-8")
         mapping = {
             "prerequisites": "Prerequisites",
             "next_steps": "Next Steps",
@@ -233,10 +248,11 @@ class SkillParser(BaseParser):
         return output
 
     @staticmethod
-    def _load_yaml_list(path: Path) -> list[dict[str, Any]]:
-        if not path.exists():
+    def _load_yaml_list(root: Path, path: Path) -> list[dict[str, Any]]:
+        content = read_text_within_root(root, path, encoding="utf-8", optional=True)
+        if content is None:
             return []
-        data = yaml.safe_load(path.read_text(encoding="utf-8")) or []
+        data = yaml.safe_load(content) or []
         if not isinstance(data, list):
             raise ValueError(f"Expected a YAML list in {path}")
         for item in data:
@@ -244,9 +260,9 @@ class SkillParser(BaseParser):
                 raise ValueError(f"Expected a list of objects in {path}")
         return data
 
-    def _parse_quiz_questions(self, path: Path) -> list[QuizQuestion]:
+    def _parse_quiz_questions(self, root: Path, path: Path) -> list[QuizQuestion]:
         questions = []
-        for item in self._load_yaml_list(path):
+        for item in self._load_yaml_list(root, path):
             questions.append(
                 QuizQuestion(
                     question=item["question"],
@@ -260,9 +276,9 @@ class SkillParser(BaseParser):
             )
         return questions
 
-    def _parse_flashcards(self, path: Path) -> list[Flashcard]:
+    def _parse_flashcards(self, root: Path, path: Path) -> list[Flashcard]:
         cards = []
-        for item in self._load_yaml_list(path):
+        for item in self._load_yaml_list(root, path):
             cards.append(
                 Flashcard(
                     front=item["front"],
@@ -273,9 +289,9 @@ class SkillParser(BaseParser):
             )
         return cards
 
-    def _parse_exercises(self, path: Path) -> list[PracticeExercise]:
+    def _parse_exercises(self, root: Path, path: Path) -> list[PracticeExercise]:
         exercises = []
-        for item in self._load_yaml_list(path):
+        for item in self._load_yaml_list(root, path):
             exercises.append(
                 PracticeExercise(
                     title=item["title"],
