@@ -40,7 +40,9 @@ def extract(args: argparse.Namespace) -> None:
         kind = "text"
     else:
         if not source.startswith(("https://", "http://")):
-            path = Path(source).expanduser().resolve(strict=True)
+            path = Path(source).expanduser().absolute()
+            if not path.exists():
+                raise FileNotFoundError(path)
             source = str(path)
         kind = Engine._detect_source_type(source).value if args.type == "auto" else args.type
     kind = "web" if kind == "webpage" else kind

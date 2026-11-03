@@ -9,12 +9,26 @@ from pathlib import Path
 import yaml
 
 
+def skill_file(skill_directory: Path) -> Path:
+    given = skill_directory.expanduser().absolute()
+    root = given.resolve(strict=True)
+    if not root.is_dir():
+        raise ValueError(f"Skill directory is not a directory: {given}")
+    path = root / "SKILL.md"
+    if path.is_symlink():
+        raise ValueError(f"SKILL.md must not be a symlink: {path}")
+    resolved = path.resolve(strict=True)
+    if not resolved.is_relative_to(root) or not resolved.is_file():
+        raise ValueError(f"SKILL.md escapes the skill directory or is not a file: {path}")
+    return resolved
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("skill_directory", type=Path)
     args = ap.parse_args()
-    path = args.skill_directory / "SKILL.md"
     try:
+        path = skill_file(args.skill_directory)
         original = path.read_text(encoding="utf-8")
         match = re.match(r"\A---\n(.*?)\n---(?:\n|$)", original, re.S)
         if not match:

@@ -4,10 +4,13 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 from skill_anything.engine import Engine
 from skill_anything.linting import SkillLinter
 from skill_anything.models import SourceType
 from skill_anything.parsers.repo_parser import RepoParser
+from skill_anything.parsers.skill_parser import SkillParser
 
 
 def test_engine_detect_source_type_for_repo_and_skill(tmp_path: Path):
@@ -44,6 +47,17 @@ def test_repo_parser_local_repo_docs_first(tmp_path: Path):
     assert "README.md" in parser.stats["selected_paths"]
     assert "docs/architecture.md" in parser.stats["selected_paths"]
     assert "node_modules/ignore.js" not in parser.stats["selected_paths"]
+
+
+def test_repo_parser_rejects_markdown_symlink_that_escapes_root(tmp_path: Path):
+    outside = tmp_path / "outside.md"
+    outside.write_text("# Private\n\nMust stay outside the imported repository.", encoding="utf-8")
+    repo_dir = tmp_path / "repo"
+    repo_dir.mkdir()
+    (repo_dir / "README.md").symlink_to(outside)
+
+    with pytest.raises(ValueError, match="symlink|escapes"):
+        RepoParser().parse_sections(str(repo_dir))
 
 
 def test_repo_parser_github_uses_selected_files(monkeypatch):
@@ -99,6 +113,69 @@ def test_engine_import_skill_round_trip(sample_pack, tmp_path: Path):
     assert imported.practice_exercises[0].citation is not None
     assert imported.citations
     assert imported.metadata["skill_name"] == "machine-learning-basics"
+
+
+def _write_minimal_skill(skill_dir: Path) -> None:
+    skill_dir.mkdir()
+    (skill_dir / "SKILL.md").write_text(
+        "---\nname: demo-skill\ndescription: test\n---\n"
+        "# Demo Skill\n\n## Overview\n\nSafe overview.\n",
+        encoding="utf-8",
+    )
+
+
+def test_skill_parser_rejects_symlinked_skill_md(tmp_path: Path):
+    outside = tmp_path / "outside-skill.md"
+    outside.write_text(
+        "---\nname: outside\ndescription: private\n---\n"
+        "# Outside\n\n## Overview\n\nPrivate content.\n",
+        encoding="utf-8",
+    )
+    skill_dir = tmp_path / "skill"
+    skill_dir.mkdir()
+    (skill_dir / "SKILL.md").symlink_to(outside)
+
+    with pytest.raises(ValueError, match="symlink|escapes"):
+        SkillParser().parse_pack(str(skill_dir))
+
+
+@pytest.mark.parametrize(
+    ("relative_path", "outside_content"),
+    [
+        (Path("references/detailed-notes.md"), "# Detailed Notes\n\nPrivate notes.\n"),
+        (Path("assets/quiz.yaml"), "[]\n"),
+    ],
+)
+def test_skill_parser_rejects_symlinked_package_file(
+    tmp_path: Path,
+    relative_path: Path,
+    outside_content: str,
+):
+    skill_dir = tmp_path / "skill"
+    _write_minimal_skill(skill_dir)
+    outside = tmp_path / f"outside-{relative_path.name}"
+    outside.write_text(outside_content, encoding="utf-8")
+    package_path = skill_dir / relative_path
+    package_path.parent.mkdir(parents=True)
+    package_path.symlink_to(outside)
+
+    with pytest.raises(ValueError, match="symlink|escapes"):
+        SkillParser().parse_pack(str(skill_dir))
+
+
+def test_skill_parser_rejects_symlinked_reference_directory(tmp_path: Path):
+    skill_dir = tmp_path / "skill"
+    _write_minimal_skill(skill_dir)
+    outside_references = tmp_path / "outside-references"
+    outside_references.mkdir()
+    (outside_references / "detailed-notes.md").write_text(
+        "# Detailed Notes\n\nPrivate notes.\n",
+        encoding="utf-8",
+    )
+    (skill_dir / "references").symlink_to(outside_references, target_is_directory=True)
+
+    with pytest.raises(ValueError, match="symlink|escapes"):
+        SkillParser().parse_pack(str(skill_dir))
 
 
 def test_skill_linter_passes_exported_skill(sample_pack, tmp_path: Path):

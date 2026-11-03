@@ -11,6 +11,7 @@ from typing import Any
 from urllib.parse import urlparse
 
 from skill_anything.models import KnowledgeChunk, Section, SourceType
+from skill_anything.parsers._source_files import read_text_within_root, resolve_source_root
 from skill_anything.parsers.base import BaseParser
 from skill_anything.parsers.text_parser import TextParser
 
@@ -162,6 +163,7 @@ class RepoParser(BaseParser):
         return len(parts) >= 2
 
     def _load_local_repo(self, root: Path) -> tuple[str, list[dict[str, str]]]:
+        root = resolve_source_root(root, label="Repository root")
         candidates: list[dict[str, str]] = []
         for dirpath, dirnames, filenames in os.walk(root):
             dirnames[:] = [
@@ -175,9 +177,10 @@ class RepoParser(BaseParser):
                 if not self._should_consider_path(rel_path):
                     continue
                 try:
-                    text = path.read_text(encoding="utf-8")
+                    text = read_text_within_root(root, path, encoding="utf-8")
                 except UnicodeDecodeError:
                     continue
+                assert text is not None
                 if not text.strip():
                     continue
                 candidates.append({"path": rel_path, "content": text})
