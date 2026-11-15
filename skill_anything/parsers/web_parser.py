@@ -2,13 +2,35 @@
 
 from __future__ import annotations
 
+import http.client
+import ipaddress
 import logging
 import re
+import socket
+import ssl
+import urllib.error
+from dataclasses import dataclass
+from urllib.parse import urljoin, urlsplit
 
 from skill_anything.models import KnowledgeChunk, Section, SourceType
 from skill_anything.parsers.base import BaseParser
 
 log = logging.getLogger(__name__)
+
+_DEFAULT_PORTS = {"http": 80, "https": 443}
+_MAX_REDIRECTS = 20
+_REDIRECT_STATUSES = {301, 302, 303, 307, 308}
+_REQUEST_TIMEOUT = 30.0
+_USER_AGENT = "Mozilla/5.0 (compatible; SkillAnything/1.0)"
+
+
+@dataclass(frozen=True)
+class _ResolvedTarget:
+    scheme: str
+    host: str
+    port: int
+    request_target: str
+    addresses: tuple[tuple, ...]
 
 
 class WebParser(BaseParser):
@@ -24,22 +46,172 @@ class WebParser(BaseParser):
 
     @staticmethod
     def _fetch(url: str) -> str:
+        current_url = url
+        for redirect_count in range(_MAX_REDIRECTS + 1):
+            target = WebParser._resolve_target(current_url)
+            connection, response = WebParser._request(target)
+            try:
+                if response.status in _REDIRECT_STATUSES:
+                    location = response.getheader("Location")
+                    if not location:
+                        raise urllib.error.HTTPError(
+                            current_url,
+                            response.status,
+                            "Redirect response is missing a Location header",
+                            response.headers,
+                            None,
+                        )
+                    if redirect_count == _MAX_REDIRECTS:
+                        raise ValueError(f"Too many redirects while fetching: {url}")
+                    current_url = urljoin(current_url, location)
+                    continue
+
+                if not 200 <= response.status < 300:
+                    raise urllib.error.HTTPError(
+                        current_url,
+                        response.status,
+                        response.reason,
+                        response.headers,
+                        None,
+                    )
+
+                body = response.read()
+                charset = response.headers.get_content_charset() or "utf-8"
+                try:
+                    return body.decode(charset, errors="replace")
+                except LookupError:
+                    return body.decode("utf-8", errors="replace")
+            finally:
+                connection.close()
+
+        raise AssertionError("redirect loop terminated unexpectedly")
+
+    @staticmethod
+    def _resolve_target(url: str) -> _ResolvedTarget:
+        """Validate a web URL and pin its public DNS results for one request."""
         try:
-            import httpx
+            parsed = urlsplit(url)
+            host = parsed.hostname
+            port = parsed.port
+        except ValueError as exc:
+            raise ValueError(f"Unsafe web URL: {exc}") from exc
 
-            resp = httpx.get(url, follow_redirects=True, timeout=30.0, headers={
-                "User-Agent": "Mozilla/5.0 (compatible; SkillAnything/1.0)"
-            })
-            resp.raise_for_status()
-            return resp.text
-        except ImportError:
-            import urllib.request
+        scheme = parsed.scheme.lower()
+        if scheme not in _DEFAULT_PORTS or not host:
+            raise ValueError(f"Expected an HTTP(S) URL, got: {url}")
+        if parsed.username is not None or parsed.password is not None:
+            raise ValueError("Unsafe web URL: credentials are not allowed")
 
-            req = urllib.request.Request(url, headers={
-                "User-Agent": "Mozilla/5.0 (compatible; SkillAnything/1.0)"
-            })
-            with urllib.request.urlopen(req, timeout=30) as resp:
-                return resp.read().decode("utf-8", errors="replace")
+        default_port = _DEFAULT_PORTS[scheme]
+        if port not in (None, default_port):
+            raise ValueError(
+                f"Unsafe web URL: {scheme.upper()} requests must use port {default_port}"
+            )
+
+        if "%" in host:
+            raise ValueError("Unsafe web URL: scoped IP addresses are not allowed")
+        try:
+            ascii_host = host.rstrip(".").encode("idna").decode("ascii")
+        except UnicodeError as exc:
+            raise ValueError("Unsafe web URL: invalid hostname") from exc
+        if not ascii_host:
+            raise ValueError("Unsafe web URL: hostname is required")
+
+        try:
+            resolved = socket.getaddrinfo(
+                ascii_host,
+                default_port,
+                family=socket.AF_UNSPEC,
+                type=socket.SOCK_STREAM,
+            )
+        except socket.gaierror as exc:
+            raise ValueError(f"Could not resolve web URL host: {ascii_host}") from exc
+
+        addresses: list[tuple] = []
+        for family, socktype, proto, _canonname, sockaddr in resolved:
+            if family not in (socket.AF_INET, socket.AF_INET6):
+                continue
+            address = ipaddress.ip_address(sockaddr[0].split("%", 1)[0])
+            if not WebParser._is_public_address(address):
+                raise ValueError(
+                    f"Unsafe web URL: {ascii_host} resolves to non-public address {address}"
+                )
+            candidate = (family, socktype, proto, sockaddr)
+            if candidate not in addresses:
+                addresses.append(candidate)
+
+        if not addresses:
+            raise ValueError(f"Could not resolve web URL host: {ascii_host}")
+
+        request_target = parsed.path or "/"
+        if parsed.query:
+            request_target = f"{request_target}?{parsed.query}"
+        return _ResolvedTarget(
+            scheme=scheme,
+            host=ascii_host,
+            port=default_port,
+            request_target=request_target,
+            addresses=tuple(addresses),
+        )
+
+    @staticmethod
+    def _is_public_address(address: ipaddress.IPv4Address | ipaddress.IPv6Address) -> bool:
+        if not address.is_global or address.is_multicast:
+            return False
+        if isinstance(address, ipaddress.IPv6Address):
+            embedded = address.ipv4_mapped or address.sixtofour
+            if embedded is not None and not WebParser._is_public_address(embedded):
+                return False
+            if address.teredo is not None:
+                server, client = address.teredo
+                if not all(WebParser._is_public_address(item) for item in (server, client)):
+                    return False
+        return True
+
+    @staticmethod
+    def _request(
+        target: _ResolvedTarget,
+    ) -> tuple[http.client.HTTPConnection, http.client.HTTPResponse]:
+        sock = WebParser._connect(target)
+        connection = http.client.HTTPConnection(
+            target.host,
+            target.port,
+            timeout=_REQUEST_TIMEOUT,
+        )
+        connection.sock = sock
+        host_header = f"[{target.host}]" if ":" in target.host else target.host
+        try:
+            connection.request(
+                "GET",
+                target.request_target,
+                headers={"Host": host_header, "User-Agent": _USER_AGENT},
+            )
+            return connection, connection.getresponse()
+        except Exception:
+            connection.close()
+            raise
+
+    @staticmethod
+    def _connect(target: _ResolvedTarget) -> socket.socket:
+        """Connect only to an address returned by the validated resolution."""
+        tls_context = ssl.create_default_context() if target.scheme == "https" else None
+        last_error: OSError | None = None
+
+        for family, socktype, proto, sockaddr in target.addresses:
+            sock: socket.socket | None = None
+            try:
+                sock = socket.socket(family, socktype, proto)
+                sock.settimeout(_REQUEST_TIMEOUT)
+                sock.connect(sockaddr)
+                if tls_context is not None:
+                    sock = tls_context.wrap_socket(sock, server_hostname=target.host)
+                return sock
+            except OSError as exc:
+                last_error = exc
+                if sock is not None:
+                    sock.close()
+
+        raise ConnectionError(f"Could not connect to web URL host: {target.host}") from last_error
 
     def _extract_content(self, html: str) -> tuple[str, str]:
         """Extract readable text from HTML. Uses BeautifulSoup if available, else regex."""
